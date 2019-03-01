@@ -133,10 +133,15 @@ typedef void (^SDLOverlayControllerCompletionHandler)(SDLResult result, NSError 
 // internal (non-public) method overriden by subclasses and called by the VC manager
 - (void)startPresentationWithApplication:(SDLApplication *)application completion:(SDLOverlayControllerCompletionHandler)completion;
 
+// internal (non-public) initializer to be used by subclasses
 - (instancetype)initWithDuration:(NSTimeInterval)duration;
 
 @end
 ```
+
+#### `initWithDuration`
+
+The base class for overlays should only be initialized from within the SDL library. 
 
 #### `duration`
 
@@ -156,7 +161,7 @@ Depending on the subclass (and the min/max values of the parameter) the duration
 
 This feature is planned in the proposal for Overlay controller related to choice sets.
 
-To realize the above behavior, the app developer must create a new view and place it in the `view` property of the overlay controller. When presenting the overlay controller with a view object the view controller manager would override the full screen of the app, but it may be handy to just override a single text field. With that a new property should be added to `SDLView` for an opaque mode.
+To realize the above behavior, the app developer must create a new view and place it in the `view` property of the overlay controller. When presenting the overlay controller with a view object the view controller manager would override the full screen of the app, but it may be handy to just override a single text field. With that, a new property should be added to `SDLView` for an opaque mode.
 
 ```objc
 @interface SDLView
@@ -172,7 +177,7 @@ To realize the above behavior, the app developer must create a new view and plac
 @end
 ```
 
-If the `opaque` flag is set to NO the view will be called transparent. It should allow views or view parts from the underlying view controller to stay visible while the overlay controller is presenting. The opaque mode is view type related and allows overriding content per view. As an example, a transparent overlay, which contains a graphic will only override the graphic view of the underlying view. With this flag:
+By default every view is opaque. If the `opaque` flag is set to NO by the developer, the view will be called transparent. It should allow views or view parts from the underlying view controller to stay visible while the overlay controller is presenting. The opaque mode is view type related and allows overriding content per view. As an example, a transparent overlay, which contains a graphic will only override the graphic view of the underlying view. With this flag:
 - the app developer has full control to decide on what to show and how to show it.
 - the complexity is scalable per the app developers choice (no overlay view -> no screen changes)
 
@@ -354,7 +359,7 @@ As per mobile API the property `Slider.sliderFooter` is an array used for two pu
 
 @property (nonatomic, nonnull, copy, readonly) NSString *title;
 
-@property (nonatomic, nullable, copy, readonly) NSString *message;
+@property (nonatomic, nonnull, copy, readonly) NSString *message;
 
 // minimumValue and maximumValue map to "Slider.numTicks"
 // the range of the two values must not exceed "maxvalue" of "Slider.numTicks"
@@ -363,11 +368,6 @@ As per mobile API the property `Slider.sliderFooter` is an array used for two pu
 
 // maps to "Slider.position" *and* "SliderResponse.sliderPosition"
 @property (nonatomic, readonly) NSInteger value;
-
-- (instancetype)initWithTitle:(nonnull NSString *)title
-                        value:(NSInteger)value
-                 minimumValue:(NSInteger)minimumValue
-                 maximumValue:(NSInteger)maximumValue;
 
 - (instancetype)initWithTitle:(nonnull NSString *)title
                       message:(nonnull NSString *)message
@@ -390,9 +390,11 @@ The `message` property maps to `Slider.sliderFooter` as a singleton array. As pe
 
 The mobile API allows `.numTicks` value between 2 and 26. The value range for the parameter `.position` can be between 1 and 26 which means the range of values is not more than 26. With the high level abstraction slider controller can manage the specified range allowing different min and max values (though range should not exceed 26). This way apps can easily set a range from -10 to +10. This range is mapped internally to the available range. Future versions of the mobile API could increase the range which would be managed by the slider controller.
 
-If the app does not provide a message the overlay controller creates localized numbers to translate `position` value to the user facing value using `NSNumberFormatter` and `localizedStringFromNumber:numberStyle:`.
-
 The property `value` maps to `Slider.value` *and*  to `SliderResponse.sliderValue`. This means the result of this overlay (Slider response) is stored in the controller object.
+
+#### Error handling
+
+If the app is connected to a head unit and the app initializes a slider using values that are out of range, the library should log a warning with "The initialized slider will potentially not be executable on the connected system.". If the app still performs the slider controller and the head unit returns INVALID_DATA, the library should call NSAssert for  minimum and maximum value so that the developer will be facing crashes during development time but error logs in production.
 
 ### SDLValuePickerController
 
@@ -405,7 +407,16 @@ This controller is used to allow picking a named value. It also uses the RPC `Sl
 
 @property (nonatomic, nonnull, copy, readonly) NSArray<NSString *> *valueLabels;
 
+@property (nonatomic, readonly) NSInteger minimumValue;
+@property (nonatomic, readonly) NSInteger maximumValue;
+
 @property (nonatomic, readonly) NSInteger value;
+
+
+- (instancetype)initWithTitle:(nonnull NSString *)title
+                        value:(NSInteger)value
+                 minimumValue:(NSInteger)minimumValue
+                 maximumValue:(NSInteger)maximumValue;
 
 - (instancetype)initWithTitle:(nonnull NSString *)title
                   valueLabels:(nonnull NSArray<NSString *> *)valueLabels
@@ -416,9 +427,13 @@ This controller is used to allow picking a named value. It also uses the RPC `Sl
 
 #### `valueLabels`
 
-This property maps to `Slider.SliderFooter`. It must not be a singleton array.
+Value labels map to `Slider.SliderFooter`. 
 
-#### `value`
+If the app initializes the value picker using value labels, this property must not be a singleton array. Minimum and maximum value will be set automatically depending on the value label array (minimum: zero, maximum: array.count -1).
+
+If the app initializes the value picker using minimum and maximum value, the controller creates localized numbers and creates a value label array to translate `position` value to the user facing value using `NSNumberFormatter` and `localizedStringFromNumber:numberStyle:`.
+
+#### `minimumValue`, `maximumValue`, `value`
 
 The property `value` behaves as the index for `valueLabel` The RPC parameter `Slider.numTicks` is set to the number of labels.
 
