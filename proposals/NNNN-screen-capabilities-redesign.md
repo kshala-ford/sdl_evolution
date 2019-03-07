@@ -15,21 +15,20 @@ The RPCs `RegisterAppInterfaceResponse` and `SetDisplayLayoutResponse` contain p
 
 ## Proposed solution
 
-A new system capability type is necessary in order to provide screen capabilities.
+A new system capability type is necessary in order to provide display capabilities.
 
 ```xml
 <enum name="SystemCapabilityType" since="4.5">
-    <element name="SCREEN" since="5.x" />
+    <element name="DISPLAY" since="5.x" />
 </enum>
 ```
 
-Apps requesting the screen capabilities can use `GetSystemCapability` and set the capability type to `SCREEN`. The system capability struct needs to be extended to hold screen capabilities. The following `ScreenCapability`struct reflects content of `DisplayCapabilities`, `ButtonCapabilities` and `SoftButtonCapabilities`. 
+### Screen capabilities
+
+Apps requesting the display capabilities can use `GetSystemCapability` and set the capability type to `DISPLAY`. The system capability struct needs to be extended to hold display capabilities. The following `ScreenCapability`struct reflects content of `DisplayCapabilities`, `ButtonCapabilities` and `SoftButtonCapabilities`. 
 
 ```xml
 <struct name="ScreenCapability" since="5.x">
-  <param name="displayName" type="String" mandatory="false">
-    <description>The name of the display the app is connected to.</description>
-  </param>
   <param name="textFields" type="TextField" minsize="1" maxsize="100" array="true" mandatory="false">
     <description>A set of all fields that support text data. See TextField</description>
   </param>
@@ -48,15 +47,28 @@ Apps requesting the screen capabilities can use `GetSystemCapability` and set th
 </struct>
 ```
 
-The above struct needs to be added as a parameter into system capability struct. The parameter needs to be of type array to be ready for multi-screen support.
+### Display capabilities
+
+To hold screen capabilities, the display capabilities should contain the display related information and all screens related to that display.
 
 ```xml
-<struct name="SystemCapability" since="4.5">
+<struct name="DisplayCapability" since="5.x">
+  <param name="displayName" type="String" />
   <param name="screenCapabilities" type="ScreenCapability" array="true" minsize="1" maxsize="1000" mandatory="false" />
 </struct>
 ```
 
-As of now in a single-screen environment `screenCapabilities` is related to the app's screen on the main display, hence this parameter requires a minsize of 1, if it's requested by the app.
+### Resulting system capabilitiy
+
+The above struct needs to be added as a parameter into system capability struct. The parameter needs to be of type array to be ready for multi-display support.
+
+```xml
+<struct name="SystemCapability" since="4.5">
+  <param name="displayCapabilities" type="DisplayCapability" array="true" minsize="1" maxsize="1000" mandatory="false" />
+</struct>
+```
+
+As of now in a single-screen and single-display environment, `displayCapabilities` and `screenCapabilities` are related to the app's single screen on the main display, hence these parameters require a minsize of 1, if it's requested by the app.
 
 ### Deprecate existing params
 
@@ -90,31 +102,28 @@ With above change, it will be possible to deprecate existing parameters in `Regi
   </param>
 </function>
 
-<function name="SetDisplayLayout" functionID="SetDisplayLayoutID" messagetype="response" since="3.0">
-  <param name="displayCapabilities" type="DisplayCapabilities" mandatory="false" deprecated="true" since="5.x">
-    <description>See DisplayCapabilities.  This parameter is deprecated and replaced by screen capabilities.</description>
-    <history>
-        <param name="displayCapabilities" type="DisplayCapabilities" mandatory="false" until="5.x"/>
-    </history>
-  </param>
-  <param name="buttonCapabilities" type="ButtonCapabilities" minsize="1" maxsize="100" array="true" mandatory="false" deprecated="true" since="5.x">
-    <description>See ButtonCapabilities.  This parameter is deprecated and replaced by screen capabilities.</description >
-    <history>
-        <param name="buttonCapabilities" type="ButtonCapabilities" minsize="1" maxsize="100" array="true" mandatory="false" until="5.x">
-    </history>
-  </param>
-  <param name="softButtonCapabilities" type="SoftButtonCapabilities" minsize="1" maxsize="100" array="true" mandatory="false" deprecated="true" since="5.x">
-    <description>If returned, the platform supports on-screen SoftButtons; see SoftButtonCapabilities. This parameter is deprecated and replaced by screen capabilities.</description >
-    <history>
-        <param name="softButtonCapabilities" type="SoftButtonCapabilities" minsize="1" maxsize="100" array="true" mandatory="false" until="5.x" />
-    </history>
-  </param>
-  <param name="presetBankCapabilities" type="PresetBankCapabilities" mandatory="false" deprecated="true" since="5.x">
-    <description>If returned, the platform supports custom on-screen Presets; see PresetBankCapabilities. This parameter is deprecated and replaced by screen capabilities.</description >
-    <history>
-        <param name="presetBankCapabilities" type="PresetBankCapabilities" mandatory="false" until="5.x" />
-    </history>
-  </param>
+<function name="SetDisplayLayout" messagetype="Request" deprecated="true" since="5.x">
+    <description>this RPC is deprecated in favor of SetScreenLayout</description>
+</function>
+
+<function name="SetDisplayLayout" messagetype="Response" deprecated="true" since="5.x">
+    <description>this RPC is deprecated in favor of SetScreenLayout</description>
+</function>
+
+<function name="SetScreenLayout" functionID="SetScreenLayoutID" messagetype="request" since="5.x">
+<param name="layoutName" type="String" maxlength="500" mandatory="true">
+    <description>
+        Predefined or dynamically created screen layout.
+        Currently only predefined screen layouts are defined.
+    </description>
+</param>
+
+<param name="dayColorScheme" type="TemplateColorScheme" mandatory="false" />
+<param name="nightColorScheme" type="TemplateColorScheme" mandatory="false" />
+</function>
+    
+    
+<function name="SetScreenLayout" functionID="SetScreenLayoutID" messagetype="response" since="5.x">
 </function>
 ```
 
@@ -155,3 +164,34 @@ No impact to existing code yet. However the screen managers should be refactored
 It is possible to have a manual subscription to screen capabilities. This is definitely a possible solution as the screen managers will perform the screen capabilities subscription. However, as this subscription will be made for 100% of the apps and as subscribing takes more time sending RPCs it was considered that autosubscription improves performance in this case.
 
 Another alternative, similar to above, allows manual subscritpion but with automatic notifications after `RegisterAppInterfaceResponse` and `SetDisplayLayout`, regardless of the subscription. This would allow applications to subscribe, in order to get notified on HMI changes related to the screen caused by the system or the user. Still it provides automatic notifications if the screen related HMI change is caused by the app (e.g. by changing the layout). 
+
+To avoid refactoring `SetDisplayLayout` to `SetScreenLayout` it is possible to just deprecate the parameters of the response.
+
+```xml
+<function name="SetDisplayLayout" functionID="SetDisplayLayoutID" messagetype="response" since="3.0">
+  <param name="displayCapabilities" type="DisplayCapabilities" mandatory="false" deprecated="true" since="5.x">
+    <description>See DisplayCapabilities.  This parameter is deprecated and replaced by screen capabilities.</description>
+    <history>
+        <param name="displayCapabilities" type="DisplayCapabilities" mandatory="false" until="5.x"/>
+    </history>
+  </param>
+  <param name="buttonCapabilities" type="ButtonCapabilities" minsize="1" maxsize="100" array="true" mandatory="false" deprecated="true" since="5.x">
+    <description>See ButtonCapabilities.  This parameter is deprecated and replaced by screen capabilities.</description >
+    <history>
+        <param name="buttonCapabilities" type="ButtonCapabilities" minsize="1" maxsize="100" array="true" mandatory="false" until="5.x">
+    </history>
+  </param>
+  <param name="softButtonCapabilities" type="SoftButtonCapabilities" minsize="1" maxsize="100" array="true" mandatory="false" deprecated="true" since="5.x">
+    <description>If returned, the platform supports on-screen SoftButtons; see SoftButtonCapabilities. This parameter is deprecated and replaced by screen capabilities.</description >
+    <history>
+        <param name="softButtonCapabilities" type="SoftButtonCapabilities" minsize="1" maxsize="100" array="true" mandatory="false" until="5.x" />
+    </history>
+  </param>
+  <param name="presetBankCapabilities" type="PresetBankCapabilities" mandatory="false" deprecated="true" since="5.x">
+    <description>If returned, the platform supports custom on-screen Presets; see PresetBankCapabilities. This parameter is deprecated and replaced by screen capabilities.</description >
+    <history>
+        <param name="presetBankCapabilities" type="PresetBankCapabilities" mandatory="false" until="5.x" />
+    </history>
+  </param>
+</function>
+```
