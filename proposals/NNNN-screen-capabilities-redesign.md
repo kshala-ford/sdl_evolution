@@ -1,4 +1,4 @@
-# Screen capabilities redesign
+# Display capabilities redesign
 
 * Proposal: [SDL-NNNN](NNNN-screen-capabilities-redesign.md)
 * Author: [Ashwin Karemore](https://github.com/akaremor), [Kujtim Shala](https://github.com/kshala-ford)
