@@ -3,7 +3,7 @@
 * Proposal: [SDL-NNNN](NNNN-screen-capabilities-redesign.md)
 * Author: [Ashwin Karemore](https://github.com/akaremor), [Kujtim Shala](https://github.com/kshala-ford)
 * Status: **Awaiting review**
-* Impacted Platforms: [Core / iOS / Android / Web / RPC]
+* Impacted Platforms: [Core / RPC]
 
 ## Introduction
 
@@ -23,7 +23,7 @@ A new system capability type is necessary in order to provide screen capabilitie
 </enum>
 ```
 
-Apps requesting the screen capabilities can use `GetSystemCapability` and set the capability type to `SCREEN`. The response and `OnSystemCapability` need to be extended to hold screen capabilities.
+Apps requesting the screen capabilities can use `GetSystemCapability` and set the capability type to `SCREEN`. The system capability struct needs to be extended to hold screen capabilities. The following `ScreenCapability`struct reflects content of `DisplayCapabilities`, `ButtonCapabilities` and `SoftButtonCapabilities`. 
 
 ```xml
 <struct name="ScreenCapability" since="5.x">
@@ -122,9 +122,9 @@ The information contained in the deprecated parameters will be made available wi
 
 ### Automatic subscription to screen capabilities
 
-As accepted in the app services proposal. The application can subscribe to system capabilities, including screen capabilities. In order to provide screen capabilities as soon as possible after app registration the application should be automatically be subscribed to screen capabilities. With this rule, Core should send a system capability notification with screen capabilities right after sending the response of the app registration. This approach results in a better performance compared to the need of the app to get/subscribe to screen capabilities. 
+As accepted in the app services proposal, the application can subscribe to system capabilities, including screen capabilities. In order to provide screen capabilities as soon as possible after the app registered, the application should be automatically subscribed to screen capabilities. With this rule, Core should send a system capability notification with screen capabilities right after sending the response of the app registration. This approach results in a better performance compared to the need of the app to get/subscribe to screen capabilities. 
 
-If an app sends `GetSystemCapability` with `SCREEN` type including `subscribe` flag, Core should ignore a subscription (`subscribe: true`) or unsubscription (`subscribe: false`) and return a message in `GetSystemCapabilityResponse` mentioning that `subscribe` parameter is ignored for `SCREEN` type. The response should contain the screen capability regardless.
+If an app sends `GetSystemCapability` with `SCREEN` type including `subscribe` flag, Core should ignore a subscription (`subscribe: true`) or unsubscription (`subscribe: false`) and return a message in `GetSystemCapabilityResponse` mentioning that `subscribe` parameter is ignored for `SCREEN` type and that the app is always subscribed. The response should contain the screen capability regardless.
 
 Below scenario shows the expected RPCs being send at app registration:
 
